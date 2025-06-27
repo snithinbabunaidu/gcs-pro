@@ -17,6 +17,11 @@ interface Telemetry {
   battery: number;
   heading: number;
   status: string;
+  gps_fix: boolean;
+  errors_count: number;
+  vx?: number;
+  vy?: number;
+  vz?: number;
 }
 
 function App() {
@@ -27,7 +32,12 @@ function App() {
     speed: 0,
     battery: 95,
     heading: 0,
-    status: 'STANDBY'
+    status: 'STANDBY',
+    gps_fix: true,
+    errors_count: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
   });
   const [logs, setLogs] = useState<Log[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -90,29 +100,22 @@ function App() {
               if (source === 'DRONE' && data) {
                 console.log('🚁 Processing drone data:', data);
                 
+                setTelemetry(prev => ({
+                  altitude: data.alt !== undefined ? data.alt : prev.altitude,
+                  speed: data.vx !== undefined && data.vy !== undefined ? Math.sqrt((data.vx/100) ** 2 + (data.vy/100) ** 2) : prev.speed,
+                  battery: data.battery_remaining !== undefined ? data.battery_remaining : prev.battery,
+                  heading: data.heading !== undefined ? data.heading : prev.heading,
+                  status: data.system_status ? data.system_status.toUpperCase() : prev.status,
+                  gps_fix: data.gps_fix !== undefined ? data.gps_fix : prev.gps_fix,
+                  errors_count: data.errors_count !== undefined ? data.errors_count : prev.errors_count,
+                  vx: data.vx !== undefined ? data.vx : prev.vx,
+                  vy: data.vy !== undefined ? data.vy : prev.vy,
+                  vz: data.vz !== undefined ? data.vz : prev.vz,
+                }));
+                
                 if (data.lat && data.lon) {
                   console.log(`📍 NEW POSITION: ${data.lat}, ${data.lon}`);
                   setDronePosition([data.lat, data.lon]);
-                }
-                
-                if (data.alt !== undefined) {
-                  console.log(`📏 NEW ALTITUDE: ${data.alt}`);
-                  setTelemetry(prev => ({ ...prev, altitude: data.alt }));
-                }
-                
-                if (data.battery_remaining !== undefined) {
-                  console.log(`🔋 NEW BATTERY: ${data.battery_remaining}%`);
-                  setTelemetry(prev => ({ ...prev, battery: data.battery_remaining }));
-                }
-                
-                if (data.heading !== undefined) {
-                  console.log(`🧭 NEW HEADING: ${data.heading}°`);
-                  setTelemetry(prev => ({ ...prev, heading: data.heading }));
-                }
-                
-                if (data.system_status) {
-                  console.log(`📊 NEW STATUS: ${data.system_status}`);
-                  setTelemetry(prev => ({ ...prev, status: data.system_status.toUpperCase() }));
                 }
               }
               

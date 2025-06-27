@@ -181,3 +181,63 @@
     bottom: 10px;
   }
 }
+
+.dronePopup .leaflet-popup-content-wrapper {
+  background: rgba(10, 20, 40, 0.98);
+  border: 2px solid #00eaff;
+  border-radius: 16px;
+  box-shadow: 0 0 24px #00eaff88, 0 0 4px #fff2;
+  padding: 0;
+}
+
+.sciFiHud {
+  font-family: 'Orbitron', 'Segoe UI', monospace;
+  color: #00eaff;
+  padding: 18px 20px 10px 20px;
+  min-width: 220px;
+  background: linear-gradient(135deg, #0a1428 80%, #00eaff22 100%);
+  border-radius: 14px;
+  box-shadow: 0 0 16px #00eaff44;
+}
+
+.hudHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.1em;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  text-shadow: 0 0 6px #00eaff, 0 0 2px #fff;
+}
+
+.hudGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+
+.hudItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.98em;
+  background: rgba(0, 234, 255, 0.07);
+  border-radius: 6px;
+  padding: 3px 6px;
+  box-shadow: 0 0 4px #00eaff33;
+}
+
+.hudFooter {
+  text-align: right;
+  font-size: 0.85em;
+  color: #00eaffbb;
+  margin-top: 6px;
+  text-shadow: 0 0 4px #00eaff;
+}
+
+.hudIcon {
+  font-size: 1.1em;
+  filter: drop-shadow(0 0 2px #00eaff);
+}

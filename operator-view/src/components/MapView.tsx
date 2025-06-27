@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { TelemetryOverlay } from './TelemetryOverlay';
 import styles from './MapView.module.css';
+import { FaBatteryFull, FaArrowUp, FaArrowRight, FaSatellite, FaExclamationTriangle, FaCompass, FaBolt, FaWifi } from 'react-icons/fa';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -41,6 +42,11 @@ interface MapViewProps {
     battery: number;
     heading: number;
     status: string;
+    gps_fix: boolean;
+    errors_count: number;
+    vx?: number;
+    vy?: number;
+    vz?: number;
   };
   onVideoToggle: () => void;
 }
@@ -81,6 +87,26 @@ export const MapView: React.FC<MapViewProps> = ({ position, telemetry, onVideoTo
         />
         
         <Marker position={position} icon={droneIcon}>
+          <Popup closeButton={false} autoPan={false} className={styles.dronePopup}>
+            <div className={styles.sciFiHud}>
+              <div className={styles.hudHeader}>
+                <span className={styles.hudIcon}><FaWifi /></span>
+                <span>DRONE HUD</span>
+                <span className={styles.hudIcon}><FaSatellite /></span>
+              </div>
+              <div className={styles.hudGrid}>
+                <div className={styles.hudItem}><span className={styles.hudIcon}><FaArrowUp /></span> Altitude: <b>{telemetry.altitude.toFixed(1)} m</b></div>
+                <div className={styles.hudItem}><span className={styles.hudIcon}><FaArrowRight /></span> Speed: <b>{telemetry.speed.toFixed(1)} m/s</b></div>
+                <div className={styles.hudItem}><span className={styles.hudIcon} style={{ color: telemetry.battery > 50 ? '#00FF00' : telemetry.battery > 20 ? '#FFD600' : '#FF1744' }}><FaBatteryFull /></span> Battery: <b>{Math.round(telemetry.battery)}%</b></div>
+                <div className={styles.hudItem}><span className={styles.hudIcon}><FaCompass /></span> Heading: <b>{Math.round(telemetry.heading)}°</b></div>
+                <div className={styles.hudItem}><span className={styles.hudIcon} style={{ color: telemetry.gps_fix ? '#00E676' : '#FF1744' }}><FaSatellite /></span> GPS: <b>{telemetry.gps_fix ? 'LOCKED' : 'NO FIX'}</b></div>
+                <div className={styles.hudItem}><span className={styles.hudIcon}><FaBolt /></span> System: <b>{telemetry.status}</b></div>
+                <div className={styles.hudItem}><span className={styles.hudIcon} style={{ color: telemetry.errors_count > 0 ? '#FF1744' : '#00E676' }}><FaExclamationTriangle /></span> Errors: <b>{telemetry.errors_count || 0}</b></div>
+                <div className={styles.hudItem}>Vx: <b>{telemetry.vx || 0} cm/s</b> Vy: <b>{telemetry.vy || 0} cm/s</b> Vz: <b>{telemetry.vz || 0} cm/s</b></div>
+              </div>
+              <div className={styles.hudFooter}>Last Update: {new Date().toLocaleTimeString()}</div>
+            </div>
+          </Popup>
         </Marker>
         
         <MapUpdater position={position} />
