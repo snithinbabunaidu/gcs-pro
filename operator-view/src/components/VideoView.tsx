@@ -78,7 +78,7 @@ export const VideoView: React.FC<VideoViewProps> = ({ telemetry, onMapToggle }) 
           muted={videoControls.muted}
           playsInline
         >
-          <source src="./assets/drone-footage.mp4" type="video/mp4" />
+          <source src="/drone-footage.mp4" type="video/mp4" />
           <div className={styles.videoPlaceholder}>
             <div className={styles.cameraIcon}>📹</div>
             <h2>Live Camera Feed</h2>
