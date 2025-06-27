@@ -7,99 +7,110 @@ const HOST = '127.0.0.1';
 let lat = 47.6062;
 let lon = -122.3321;
 let alt = 120;
+let vx = 0;
+let vy = 0;
+let vz = 0;
+let heading = 90;
+let battery = 100;
+let system_status = 'ACTIVE';
+let gps_fix = true;
+let errors_count = 0;
 
 console.log('🚁 MAVLink Simulator Started!');
 console.log(`📡 Sending telemetry data to UDP ${HOST}:${PORT}`);
 console.log('📍 Simulating drone movement around Seattle...\n');
 
-// Send heartbeat every 5 seconds
+// Send HEARTBEAT every 1s
 setInterval(() => {
     const heartbeatPacket = {
         packet_type: "HEARTBEAT",
-        system_status: "standby",
-        mavlink_version: 2
+        system_status,
+        mode: "GUIDED",
+        armed: true,
+        mavlink_version: 2,
+        level: "INFO"
     };
-
     const message = Buffer.from(JSON.stringify(heartbeatPacket));
-    client.send(message, 0, message.length, PORT, HOST, (err) => {
-        if (err) {
-            console.error('❌ Error sending HEARTBEAT:', err.message);
-        } else {
-            console.log('💓 HEARTBEAT sent');
-        }
-    });
-}, 5000);
+    client.send(message, 0, message.length, PORT, HOST);
+}, 1000);
 
-// Send position updates every 2 seconds
+// Send GLOBAL_POSITION_INT every 200ms (5Hz)
 setInterval(() => {
-    // Simulate realistic movement (small increments)
-    lat += (Math.random() - 0.5) * 0.0002; // ~22 meters max change
-    lon += (Math.random() - 0.5) * 0.0002;
-    alt += Math.floor((Math.random() - 0.5) * 10); // ±5 meter altitude change
+    // Simulate movement
+    vx = (Math.random() - 0.5) * 2; // m/s
+    vy = (Math.random() - 0.5) * 2;
+    vz = (Math.random() - 0.5) * 0.5;
+    lat += vx * 0.00001;
+    lon += vy * 0.00001;
+    alt += vz;
+    heading = (heading + Math.random() * 2 - 1) % 360;
     
-    // Keep altitude reasonable
-    alt = Math.max(80, Math.min(200, alt));
-
-    const telemetryPacket = {
+    const positionPacket = {
         packet_type: "GLOBAL_POSITION_INT",
-        lat: parseFloat(lat.toFixed(6)),
-        lon: parseFloat(lon.toFixed(6)),
-        alt: alt,
-        relative_alt: alt - 50, // Assuming ground level is 50m
-        heading: Math.floor(Math.random() * 360)
+        lat: parseFloat(lat.toFixed(7)),
+        lon: parseFloat(lon.toFixed(7)),
+        alt: Math.round(alt),
+        relative_alt: Math.round(alt - 50),
+        vx: Math.round(vx * 100),
+        vy: Math.round(vy * 100),
+        vz: Math.round(vz * 100),
+        heading: Math.round(heading),
+        gps_fix,
+        level: gps_fix ? "INFO" : "WARN"
     };
+    const message = Buffer.from(JSON.stringify(positionPacket));
+    client.send(message, 0, message.length, PORT, HOST);
+}, 200);
 
-    const message = Buffer.from(JSON.stringify(telemetryPacket));
-    client.send(message, 0, message.length, PORT, HOST, (err) => {
-        if (err) {
-            console.error('❌ Error sending position:', err.message);
-        } else {
-            console.log(`📍 Position: ${lat.toFixed(6)}, ${lon.toFixed(6)}, ${alt}m`);
-        }
-    });
-}, 2000);
-
-// Send attitude updates every 1 second
+// Send ATTITUDE every 100ms (10Hz)
 setInterval(() => {
     const attitudePacket = {
         packet_type: "ATTITUDE",
-        roll: (Math.random() - 0.5) * 0.2, // ±0.1 radians (~6 degrees)
+        roll: (Math.random() - 0.5) * 0.2,
         pitch: (Math.random() - 0.5) * 0.2,
-        yaw: Math.random() * Math.PI * 2,
+        yaw: heading * Math.PI / 180,
         rollspeed: (Math.random() - 0.5) * 0.1,
         pitchspeed: (Math.random() - 0.5) * 0.1,
-        yawspeed: (Math.random() - 0.5) * 0.1
+        yawspeed: (Math.random() - 0.5) * 0.1,
+        level: "INFO"
     };
-
     const message = Buffer.from(JSON.stringify(attitudePacket));
-    client.send(message, 0, message.length, PORT, HOST, (err) => {
-        if (!err) {
-            console.log('🧭 Attitude data sent');
-        }
-    });
-}, 1000);
+    client.send(message, 0, message.length, PORT, HOST);
+}, 100);
 
-// Battery status every 10 seconds
-let batteryLevel = 95;
+// Send SYS_STATUS every 2s (0.5Hz)
 setInterval(() => {
-    batteryLevel = Math.max(20, batteryLevel - Math.random() * 0.5); // Slow battery drain
-    
-    const batteryPacket = {
+    battery -= Math.random() * 0.2;
+    if (battery < 20) {
+        system_status = 'CRITICAL';
+        errors_count = 1;
+    } else if (battery < 50) {
+        system_status = 'WARN';
+        errors_count = 0;
+    } else {
+        system_status = 'ACTIVE';
+        errors_count = 0;
+    }
+    const sysStatusPacket = {
         packet_type: "SYS_STATUS",
-        voltage_battery: Math.floor(batteryLevel * 0.42 * 100), // Convert to centivolts
-        current_battery: Math.floor(Math.random() * 500 + 100), // 1-6A current draw
-        battery_remaining: Math.floor(batteryLevel)
+        voltage_battery: Math.round(battery * 0.42 * 100),
+        current_battery: Math.round(Math.random() * 500 + 100),
+        battery_remaining: Math.round(battery),
+        errors_count,
+        level: battery < 20 ? "CRITICAL" : battery < 50 ? "WARN" : "INFO"
     };
+    const message = Buffer.from(JSON.stringify(sysStatusPacket));
+    client.send(message, 0, message.length, PORT, HOST);
+}, 2000);
 
-    const message = Buffer.from(JSON.stringify(batteryPacket));
-    client.send(message, 0, message.length, PORT, HOST, (err) => {
-        if (!err) {
-            console.log(`🔋 Battery: ${Math.floor(batteryLevel)}%`);
-        }
-    });
-}, 10000);
+// Simulate GPS loss occasionally
+setInterval(() => {
+    if (Math.random() < 0.05) {
+        gps_fix = false;
+        setTimeout(() => { gps_fix = true; }, 3000);
+    }
+}, 5000);
 
-// Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n🛑 MAVLink Simulator shutting down...');
     client.close();

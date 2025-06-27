@@ -4,75 +4,47 @@ const HOST = '127.0.0.1';
 
 console.log('🔧 Payload Simulator Started!');
 console.log(`📡 Connecting to Mission Control Hub at ${HOST}:${PORT}`);
-console.log('🎯 Simulating various payload commands...\n');
+console.log('🎯 Simulating sci-fi payload events...\n');
 
-// Array of realistic payload commands
-const payloadCommands = [
-    'ACTIVATE_LIDAR_SCAN',
-    'START_THERMAL_IMAGING',
-    'CAPTURE_HIGH_RES_PHOTO',
-    'BEGIN_VIDEO_RECORDING',
-    'STOP_VIDEO_RECORDING',
-    'ZOOM_IN_2X',
-    'ZOOM_OUT_1X',
-    'SWITCH_TO_INFRARED',
-    'SWITCH_TO_VISIBLE_LIGHT',
-    'STABILIZE_GIMBAL',
-    'POINT_GIMBAL_DOWN',
-    'POINT_GIMBAL_FORWARD',
-    'START_AREA_MAPPING',
-    'STOP_AREA_MAPPING',
-    'EMERGENCY_PAYLOAD_SHUTDOWN',
-    'RUN_DIAGNOSTICS',
-    'CALIBRATE_SENSORS',
-    'SAVE_WAYPOINT',
-    'START_FOLLOW_MODE',
-    'STOP_FOLLOW_MODE'
+const payloadEvents = [
+    { event: 'LASER_SCAN_STARTED', level: 'INFO', subsystem: 'LIDAR', details: 'High-res scan initiated.' },
+    { event: 'SHIELD_ACTIVATED', level: 'INFO', subsystem: 'SHIELD', details: 'Defensive shield online.' },
+    { event: 'AI_TARGET_LOCK', level: 'INFO', subsystem: 'AI', details: 'Target locked by onboard AI.' },
+    { event: 'CAMERA_OVERHEAT', level: 'WARN', subsystem: 'CAMERA', details: 'Camera temperature high.' },
+    { event: 'PAYLOAD_JAMMED', level: 'CRITICAL', subsystem: 'PAYLOAD', details: 'Payload mechanism jammed.' },
+    { event: 'MAPPING_STARTED', level: 'INFO', subsystem: 'MAPPER', details: 'Area mapping in progress.' },
+    { event: 'MAPPING_STOPPED', level: 'INFO', subsystem: 'MAPPER', details: 'Mapping complete.' },
+    { event: 'EMERGENCY_SHUTDOWN', level: 'CRITICAL', subsystem: 'CORE', details: 'Emergency shutdown triggered.' },
+    { event: 'THERMAL_ALERT', level: 'WARN', subsystem: 'THERMAL', details: 'Thermal anomaly detected.' },
+    { event: 'PAYLOAD_RECOVERY', level: 'INFO', subsystem: 'PAYLOAD', details: 'Payload system recovered.' },
+    { event: 'STEALTH_MODE_ENGAGED', level: 'INFO', subsystem: 'STEALTH', details: 'Stealth mode active.' },
+    { event: 'SENSOR_CALIBRATION', level: 'INFO', subsystem: 'SENSOR', details: 'Calibration routine complete.' },
+    { event: 'POWER_SURGE', level: 'WARN', subsystem: 'POWER', details: 'Power surge detected.' },
+    { event: 'AI_DIAGNOSTICS', level: 'INFO', subsystem: 'AI', details: 'Diagnostics check passed.' },
+    { event: 'SHIELD_FAILURE', level: 'CRITICAL', subsystem: 'SHIELD', details: 'Shield system failure.' }
 ];
 
-let commandIndex = 0;
-
-// Send payload commands every 8-12 seconds (randomized)
-function scheduleNextCommand() {
-    const delay = Math.random() * 4000 + 8000; // 8-12 seconds
-    
-    setTimeout(() => {
-        sendPayloadCommand();
-        scheduleNextCommand();
-    }, delay);
+function randomId() {
+    return Math.floor(Math.random() * 1e8).toString(16).toUpperCase();
 }
 
-function sendPayloadCommand() {
+let eventIndex = 0;
+
+function sendPayloadEvent() {
     const client = new net.Socket();
-    const command = payloadCommands[commandIndex % payloadCommands.length];
-    commandIndex++;
-    
+    const base = payloadEvents[eventIndex % payloadEvents.length];
+    eventIndex++;
+    const payload = {
+        ...base,
+        event_id: randomId(),
+        timestamp: new Date().toISOString(),
+        source: 'PAYLOAD_CONTROLLER',
+    };
     client.connect(PORT, HOST, () => {
-        console.log(`🔗 Connected to Mission Control Hub`);
-        client.write(command);
-        console.log(`📤 Sent command: ${command}`);
-        
-        // Add some metadata in a second message
-        setTimeout(() => {
-            const metadata = JSON.stringify({
-                command_id: commandIndex,
-                timestamp: new Date().toISOString(),
-                priority: Math.random() > 0.8 ? 'HIGH' : 'NORMAL',
-                source: 'PAYLOAD_CONTROLLER'
-            });
-            client.write(`\nMETADATA: ${metadata}`);
-            client.destroy(); // Close connection
-        }, 100);
+        client.write(JSON.stringify(payload));
+        console.log(`📤 Sent event: ${payload.event} (${payload.level})`);
+        client.destroy();
     });
-
-    client.on('data', (data) => {
-        console.log('📥 Response from hub:', data.toString());
-    });
-
-    client.on('close', () => {
-        console.log('🔌 Connection closed\n');
-    });
-
     client.on('error', (err) => {
         if (err.code === 'ECONNREFUSED') {
             console.log('⚠️  Mission Control Hub not running (this is normal if the app isn\'t started yet)');
@@ -82,30 +54,20 @@ function sendPayloadCommand() {
     });
 }
 
-// Send first command after 3 seconds to allow main app to start
+function scheduleNextEvent() {
+    const delay = Math.random() * 5000 + 5000; // 5-10 seconds
+    setTimeout(() => {
+        sendPayloadEvent();
+        scheduleNextEvent();
+    }, delay);
+}
+
 setTimeout(() => {
-    console.log('🚀 Starting payload command sequence...\n');
-    sendPayloadCommand();
-    scheduleNextCommand();
+    console.log('🚀 Starting sci-fi payload event sequence...\n');
+    sendPayloadEvent();
+    scheduleNextEvent();
 }, 3000);
 
-// Send a status ping every 30 seconds
-setInterval(() => {
-    const client = new net.Socket();
-    client.connect(PORT, HOST, () => {
-        client.write('PAYLOAD_STATUS_PING');
-        console.log('📡 Status ping sent');
-        client.destroy();
-    });
-    
-    client.on('error', (err) => {
-        if (err.code !== 'ECONNREFUSED') {
-            console.error('❌ Status ping error:', err.message);
-        }
-    });
-}, 30000);
-
-// Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n🛑 Payload Simulator shutting down...');
     process.exit(0);
