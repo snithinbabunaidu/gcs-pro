@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapView } from './components/MapView';
 import { VideoView } from './components/VideoView';
 import { LogToast } from './components/LogToast';
@@ -41,65 +41,113 @@ function App() {
   });
   const [logs, setLogs] = useState<Log[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const eventListenerSetup = useRef(false);
 
-  // Auto-remove logs after 8 seconds
+  // Event listener setup
   useEffect(() => {
-    if (logs.length > 0) {
-      const timer = setTimeout(() => {
-        setLogs(currentLogs => currentLogs.slice(1));
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [logs]);
-
-  // SIMPLIFIED EVENT LISTENER
-  useEffect(() => {
-    console.log('🔍 Setting up event listener...');
+    if (eventListenerSetup.current) return;
     
+    eventListenerSetup.current = true;
     let cleanup: (() => void) | null = null;
 
     const setupEventListener = async () => {
       try {
-        // Check if we're in Tauri
         if (typeof window !== 'undefined' && (window as any).__TAURI__?.event) {
-          console.log('✅ Tauri detected!');
-          
-          // Import the listen function
           const { listen } = await import('@tauri-apps/api/event');
           
-          console.log('🎧 Setting up listener for "new-backend-event"...');
-          
-          // Listen for events
           const unlisten = await listen('new-backend-event', (event: any) => {
-            console.log('🎉 EVENT RECEIVED!', event);
-            console.log('📦 Event payload:', event.payload);
-            console.log('📦 Payload type:', typeof event.payload);
-            
             try {
-              // Parse the JSON payload
               const backendEvent = JSON.parse(event.payload);
-              console.log('📋 Parsed event:', backendEvent);
+              const { source, data } = backendEvent;
               
-              const { source, message, data, timestamp } = backendEvent;
-              
-              // Add log toast
-              const newLog: Log = {
-                id: Date.now() + Math.random(),
-                message: `${source}: ${message}`,
-                level: message.includes('EMERGENCY') ? 'CRITICAL' : 'INFO',
-                timestamp
-              };
-              
-              console.log('📝 Adding log:', newLog);
-              setLogs(prev => [...prev.slice(-4), newLog]);
+              // Handle payload events - create meaningful toast messages
+              if (source !== 'DRONE') {
+                const eventData = JSON.parse(backendEvent.data?.command || '{}');
+                const eventName = eventData.event || backendEvent.event || 'Unknown Event';
+                const subsystem = eventData.subsystem || 'SYSTEM';
+                const details = eventData.details || '';
+                const level: 'INFO' | 'WARN' | 'CRITICAL' = eventData.level || 'INFO';
+                const data = eventData.data || {};
+                
+                // Create dynamic message from the actual event data
+                let message = details || eventName.replace(/_/g, ' ').toLowerCase()
+                  .split(' ')
+                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(' ');
+                
+                // Add relevant data points if available
+                const dataPoints = [];
+                if (data.scan_area) dataPoints.push(`Area: ${data.scan_area}`);
+                if (data.resolution) dataPoints.push(`Resolution: ${data.resolution}`);
+                if (data.file_size) dataPoints.push(`Size: ${data.file_size}`);
+                if (data.location) dataPoints.push(`Location: ${data.location}`);
+                if (data.max_temp) dataPoints.push(`Max temp: ${data.max_temp}°C`);
+                if (data.min_temp) dataPoints.push(`Min temp: ${data.min_temp}°C`);
+                if (data.anomalies) dataPoints.push(`Anomalies: ${data.anomalies}`);
+                if (data.bandwidth) dataPoints.push(`Bandwidth: ${data.bandwidth}`);
+                if (data.latency) dataPoints.push(`Latency: ${data.latency}`);
+                if (data.waypoint) dataPoints.push(`Waypoint: ${data.waypoint}`);
+                if (data.eta_next) dataPoints.push(`ETA: ${data.eta_next}`);
+                if (data.coverage) dataPoints.push(`Coverage: ${data.coverage}`);
+                if (data.images) dataPoints.push(`Images: ${data.images}`);
+                if (data.distance) dataPoints.push(`Distance: ${data.distance}`);
+                if (data.boundary) dataPoints.push(`Boundary: ${data.boundary}`);
+                if (data.available) dataPoints.push(`Available: ${data.available}`);
+                if (data.used) dataPoints.push(`Used: ${data.used}`);
+                if (data.level) dataPoints.push(`Level: ${data.level}G`);
+                if (data.threshold) dataPoints.push(`Threshold: ${data.threshold}G`);
+                if (data.temp) dataPoints.push(`Temp: ${data.temp}`);
+                if (data.limit) dataPoints.push(`Limit: ${data.limit}`);
+                if (data.satellites) dataPoints.push(`Satellites: ${data.satellites}`);
+                if (data.strength) dataPoints.push(`Strength: ${data.strength}`);
+                if (data.backup_status) dataPoints.push(`Backup: ${data.backup_status}`);
+                if (data.data_loss) dataPoints.push(`Data loss: ${data.data_loss}`);
+                if (data.voltage) dataPoints.push(`Voltage: ${data.voltage}`);
+                if (data.expected) dataPoints.push(`Expected: ${data.expected}`);
+                if (data.reason) dataPoints.push(`Reason: ${data.reason}`);
+                if (data.eta) dataPoints.push(`ETA: ${data.eta}`);
+                
+                // Append data points to message if any exist
+                if (dataPoints.length > 0) {
+                  message += ` (${dataPoints.slice(0, 2).join(', ')})`;
+                }
+                
+                // Add subsystem prefix for context
+                const finalMessage = `${subsystem}: ${message}`;
+                
+                const newLog: Log = {
+                  id: Date.now() + Math.random(),
+                  message: finalMessage,
+                  level,
+                  timestamp: new Date().toLocaleTimeString()
+                };
+                
+                console.log('📨 Payload Event:', {
+                  event: eventName,
+                  subsystem,
+                  level,
+                  details,
+                  data,
+                  finalMessage
+                });
+                
+                setLogs(prev => {
+                  const newLogs = [...prev.slice(-4), newLog];
+                  
+                  // Auto-remove after 8 seconds
+                  setTimeout(() => {
+                    setLogs(currentLogs => currentLogs.filter(l => l.id !== newLog.id));
+                  }, 8000);
+                  
+                  return newLogs;
+                });
+              }
               
               // Update connection status
               setIsConnected(true);
               
-              // Handle DRONE events
+              // Handle drone telemetry updates
               if (source === 'DRONE' && data) {
-                console.log('🚁 Processing drone data:', data);
-                
                 setTelemetry(prev => ({
                   altitude: data.alt !== undefined ? data.alt : prev.altitude,
                   speed: data.vx !== undefined && data.vy !== undefined ? Math.sqrt((data.vx/100) ** 2 + (data.vy/100) ** 2) : prev.speed,
@@ -114,29 +162,22 @@ function App() {
                 }));
                 
                 if (data.lat && data.lon) {
-                  console.log(`📍 NEW POSITION: ${data.lat}, ${data.lon}`);
                   setDronePosition([data.lat, data.lon]);
                 }
               }
               
             } catch (error) {
-              console.error('❌ Error parsing event:', error);
-              console.error('❌ Raw payload:', event.payload);
+              console.error('Error parsing event:', error);
             }
           });
           
           cleanup = unlisten;
-          console.log('✅ Event listener setup complete!');
-          
         } else {
-          console.log('❌ Not in Tauri environment');
-          // Simulate for browser testing
           setIsConnected(true);
         }
-        
       } catch (error) {
-        console.error('❌ Failed to setup event listener:', error);
-        setIsConnected(true); // Fallback
+        console.error('Failed to setup event listener:', error);
+        setIsConnected(true);
       }
     };
 
@@ -145,8 +186,8 @@ function App() {
     return () => {
       if (cleanup) {
         cleanup();
-        console.log('🧹 Cleaned up event listener');
       }
+      eventListenerSetup.current = false;
     };
   }, []);
 
@@ -157,19 +198,6 @@ function App() {
   const dismissLog = (logId: number) => {
     setLogs(currentLogs => currentLogs.filter(log => log.id !== logId));
   };
-
-  // Debug: Log state changes
-  useEffect(() => {
-    console.log('📍 Drone position updated:', dronePosition);
-  }, [dronePosition]);
-
-  useEffect(() => {
-    console.log('📊 Telemetry updated:', telemetry);
-  }, [telemetry]);
-
-  useEffect(() => {
-    console.log('📝 Logs updated:', logs.length, 'total logs');
-  }, [logs]);
 
   return (
     <div className="app-container">
@@ -204,7 +232,7 @@ function App() {
         ))}
       </div>
 
-      {/* Enhanced Debug Info */}
+      {/* Debug Info */}
       <div className="debug-info" style={{ 
         fontSize: '11px', 
         backgroundColor: 'rgba(0,0,0,0.9)',
