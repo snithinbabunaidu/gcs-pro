@@ -91,7 +91,9 @@ export const MapView: React.FC<MapViewProps> = ({ position, telemetry, onVideoTo
             <div className={styles.sciFiHud}>
               <div className={styles.hudHeader}>
                 <span className={styles.hudIcon}><FaWifi /></span>
+                <span> </span>
                 <span>DRONE HUD</span>
+                <span> </span>
                 <span className={styles.hudIcon}><FaSatellite /></span>
               </div>
               <div className={styles.hudGrid}>

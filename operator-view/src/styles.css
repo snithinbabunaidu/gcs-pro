@@ -247,3 +247,13 @@ video {
     display: none;
   }
 }
+
+.leaflet-popup,
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip,
+.leaflet-popup-tip-container {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
